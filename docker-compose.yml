@@ -1,31 +1,40 @@
-version: '3.8'
+name: Deploy Back-end Local
 
-services:
-    backend:
-        build:
-            context: .
-            target: dev
-        volumes:
-            - .:/var/www
-        ports:
-            - "8000:8000"
-        environment:
-            - DB_HOST=db
-            - DB_DATABASE=laravel_db
-            - DB_USERNAME=root
-            - DB_PASSWORD=root
-        depends_on:
-            - db
+on:
+    push:
+        branches: [ "main" ]
 
-    db:
-        image: mysql:8.0
-        ports:
-            - "3306:3306"
-        environment:
-            MYSQL_DATABASE: laravel_db
-            MYSQL_ROOT_PASSWORD: root
-        volumes:
-            - mysql_data:/var/lib/mysql
+jobs:
+    build-and-deploy:
+        runs-on: [ self-hosted, prod-back ]
 
-volumes:
-    mysql_data:
+        steps:
+            - name: Checkout do código
+              uses: actions/checkout@v4
+
+            - name: Criar arquivo .env e Executar Build Local
+              run: |
+                  # Configura as variáveis para o Dockerfile saber que deve rodar o build de produção
+                  export DOCKER_TARGET_BACK=prod
+                  export BACK_PORT=8000
+                  export NGINX_BACK_PORT=8000
+
+                  # Escreve o arquivo .env de produção que o Laravel e o MySQL vão ler
+                  echo "APP_ENV=production" > .env
+                  echo "APP_DEBUG=false" >> .env
+                  echo "DB_CONNECTION=mysql" >> .env
+                  echo "DB_HOST=db" >> .env
+                  echo "DB_DATABASE=laravel_prod" >> .env
+                  echo "DB_USERNAME=laravel_user" >> .env
+                  echo "DB_PASSWORD=senha_segura_producao" >> .env
+                  echo "DB_ROOT_PASSWORD=senha_root_ultra_segura" >> .env
+
+                  # Reconstrói a imagem do back-end localmente no servidor sem puxar de registro externo
+                  docker compose --profile production build --no-cache backend
+
+                  # Inicia todo o ambiente de produção
+                  docker compose --profile production up -d --force-recreate backend db nginx
+
+                  # Executa as migrations do Laravel
+                  sleep 10
+                  docker exec backend-container php artisan migrate --force

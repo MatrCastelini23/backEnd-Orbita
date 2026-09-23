@@ -7,34 +7,40 @@ on:
 jobs:
   build-and-deploy:
     runs-on: [self-hosted, prod-back]
+    environment: production
 
     steps:
     - name: Checkout do código
       uses: actions/checkout@v4
 
-    - name: Configurar Docker Buildx
-      uses: docker/setup-buildx-action@v3
+    - name: Build da imagem de produção (local, sem push)
+      run: docker build --target prod -t meu-projeto-backend:prod .
 
-    - name: Login no Docker Hub
-      uses: docker/login-action@v3
-      with:
-        username: ${{ secrets.DOCKERHUB_USERNAME }}
-        password: ${{ secrets.DOCKERHUB_TOKEN }}
+    - name: Gerar .env de produção
+      run: |
+        cat > ~/app-backend/.env <<EOT
+        APP_ENV=${{ vars.APP_ENV }}
+        APP_DEBUG=${{ vars.APP_DEBUG }}
+        DB_HOST=db
+        DB_DATABASE=${{ secrets.DB_DATABASE }}
+        DB_USERNAME=${{ secrets.DB_USERNAME }}
+        DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+        BACK_PORT=${{ vars.BACK_PORT }}
+        NGINX_BACK_PORT=${{ vars.NGINX_BACK_PORT }}
+        EOT
+        chmod 600 ~/app-backend/.env
 
-    - name: Build e Push da Imagem de Produção
-      uses: docker/build-push-action@v5
-      with:
-        context: .
-        target: prod
-        push: true
-        tags: ${{ secrets.DOCKERHUB_USERNAME }}/meu-projeto-backend:latest
+    - name: Gerar secret da senha do banco (arquivo, fora do .env)
+      run: |
+        mkdir -p ~/app-backend/secrets
+        printf '%s' "${{ secrets.DB_PASSWORD }}" > ~/app-backend/secrets/db_password.txt
+        chmod 600 ~/app-backend/secrets/db_password.txt
 
     - name: Atualizar Ambiente e Rodar Migrations
       run: |
-        docker pull ${{ secrets.DOCKERHUB_USERNAME }}/meu-projeto-backend:latest
-        # Entra na pasta fixa da infraestrutura de produção que criamos no seu Ubuntu Server
+        # Entra na pasta fixa da infraestrutura de produção no Ubuntu Server
         cd ~/app-backend
-        # Reinicia apenas o serviço do Laravel aplicando a imagem nova baixada do Docker Hub
-        docker compose up -d --force-recreate backend
+        # Sobe/recria backend e nginx usando a imagem recem-buildada localmente
+        docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile production up -d --force-recreate backend nginx db
         # Executa as migrations do banco de dados automaticamente dentro do novo container
         docker exec backend-container php artisan migrate --force

@@ -1,8 +1,8 @@
-# FrontEnd E-Commerce Órbita -- Projeto DevOps.
+# Backend E-Commerce Órbita -- Projeto DevOps.
 
 Este repositório tem fins de academicos. Minha idéia é criar uma E-commerce ficticio para simular um ambiente de desenvolvimento + produção. <br>
 Para está aplicação vou utilizar uma arquitetura de duas camadas, usada em várias aplicaçoes Web. Como a idéia é simular um ambiente de integração e entrega continua, decide por começar em uma arquitetura não tão complexa já que este não é a finalidade desde estudo.<br>
-Abaixo detalho um pouco mais sobre a idéia e as tecnologias a serem utilizadas e a documentação do Front-End.
+Abaixo detalho um pouco mais sobre a idéia e as tecnologias a serem utilizadas e a documentação do Backend + histórico do processos de criação da pipeline de CI/CD.
 
 ## Organização de ambientes: 
 
@@ -19,16 +19,27 @@ Por mais que esse seja um estudo indidual, vou trabalhar com duas branch:
 - Development: responsavel pelo código recebido do ambiente local que será testado antes do merge na Main.<br>
 Em caso de este estudo me levar a conhecimentos ainda não explorados por mim dentro do Github, talvez eu configure teste automatizados com o GitHub Actions e crie um projeto que também será público se possivel.
 
-## Front-End: 
-
-Vou utilizar React + Vite para o Frotend refatorando um código feito por mim com fins de otimização e padronização de mercado: 
->https://github.com/MatrCastelini23/projeto3
+## BackEnd:
+Minha idéia é utilizar o Laravel como Backend, sem utilizar as partes da view direto neste repositório. 
 
 ### Tecnologias: 
 
-- React
-  - React-Router-Dom
-  - Lucide React
-- TailWindCSS
-- NGINX
-- TypeScript
+- Laravel 
+- MySQL
+
+## Construção da CI/CD.
+
+### Configuração do Servidor Local: 
+
+- Após instalar o Ubuntu server em uma máquina, fiz instalação do Docker, Docker Compose e git.
+> sudo apt update && sudo apt upgrade -y <br> sudo apt install -y docker.io docker-compose-v2 git curl
+
+- E habilita a permissão que o Docker rode os containers sem o sudo:
+> sudo usermod -aG docker $USER <br> newgrp docker
+
+### Configuração dos Runners no Github:
+
+- Criado um Runner dentro dos dois repositório com a opção Linux x64.
+- Criado duas pasta dentro do Ubuntu Serve: 
+    - runner-front -> responsavel pelo front end da aplicação
+    - runner-back -> responsavel pelo back end da aplicação.
