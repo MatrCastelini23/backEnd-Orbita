@@ -1,4 +1,4 @@
-name: Deploy Back-end
+name: Deploy Back-end Local
 
 on:
   push:
@@ -7,40 +7,40 @@ on:
 jobs:
   build-and-deploy:
     runs-on: [self-hosted, prod-back]
-    environment: production
 
     steps:
     - name: Checkout do código
       uses: actions/checkout@v4
 
-    - name: Build da imagem de produção (local, sem push)
-      run: docker build --target prod -t meu-projeto-backend:prod .
-
-    - name: Gerar .env de produção
+    - name: Criar arquivo .env e Executar Build Local
       run: |
-        cat > ~/app-backend/.env <<EOT
-        APP_ENV=${{ vars.APP_ENV }}
-        APP_DEBUG=${{ vars.APP_DEBUG }}
-        DB_HOST=db
-        DB_DATABASE=${{ secrets.DB_DATABASE }}
-        DB_USERNAME=${{ secrets.DB_USERNAME }}
-        DB_PASSWORD=${{ secrets.DB_PASSWORD }}
-        BACK_PORT=${{ vars.BACK_PORT }}
-        NGINX_BACK_PORT=${{ vars.NGINX_BACK_PORT }}
-        EOT
-        chmod 600 ~/app-backend/.env
+        # Configura as portas para PRODUÇÃO no Ubuntu Server
+        export DOCKER_TARGET_BACK=prod
+        export BACK_PORT=9000
+        export BACK_CONTAINER_PORT=9000
+        export NGINX_BACK_PORT=8000        # <--- Porta de acesso externa da API
+        export NGINX_CONTAINER_PORT=80     # <--- Porta interna do Nginx do Back
 
-    - name: Gerar secret da senha do banco (arquivo, fora do .env)
-      run: |
-        mkdir -p ~/app-backend/secrets
-        printf '%s' "${{ secrets.DB_PASSWORD }}" > ~/app-backend/secrets/db_password.txt
-        chmod 600 ~/app-backend/secrets/db_password.txt
+        # Escreve o arquivo .env de produção que o container do Laravel lerá internamente
+        echo "APP_ENV=production" > .env
+        echo "APP_DEBUG=false" >> .env
+        echo "DB_CONNECTION=mysql" >> .env
+        echo "DB_HOST=db" >> .env             # <--- Aponta para o nome do serviço no compose
+        echo "DB_DATABASE=laravel_prod" >> .env
+        echo "DB_USERNAME=laravel_user" >> .env
+        echo "DB_PASSWORD=senha_segura_producao" >> .env
+        echo "DB_ROOT_PASSWORD=senha_root_ultra_segura" >> .env
 
-    - name: Atualizar Ambiente e Rodar Migrations
-      run: |
-        # Entra na pasta fixa da infraestrutura de produção no Ubuntu Server
-        cd ~/app-backend
-        # Sobe/recria backend e nginx usando a imagem recem-buildada localmente
-        docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile production up -d --force-recreate backend nginx db
-        # Executa as migrations do banco de dados automaticamente dentro do novo container
+        # Derruba execuções anteriores limpando conflitos
+        docker compose --profile production down || true
+        docker rm -f backend-container mysql-container nginx-backend || true
+
+        # Reconstrói a imagem do Laravel localmente no servidor
+        docker compose --profile production build --no-cache backend
+
+        # Inicia o ecossistema com o perfil de produção ativo (inclui o Nginx do back na porta 8000)
+        docker compose --profile production up -d backend db nginx
+
+        # Aguarda o MySQL inicializar as tabelas antes de aplicar as migrations
+        sleep 12
         docker exec backend-container php artisan migrate --force
