@@ -1,40 +1,60 @@
-name: Deploy Back-end Local
+version: '3.8'
 
-on:
-    push:
-        branches: [ "main" ]
+services:
+    # --- Camada de Aplicação (Laravel) ---
+    backend:
+        build:
+            context: .
+            target: ${DOCKER_TARGET_BACK:-dev}
+        image: meu-projeto-backend:latest
+        container_name: backend-container
+        restart: always
+        ports:
+            # Localmente roda na 8000 (artisan serve). Em prod, o PHP-FPM roda interno na 9000 e o Nginx cuida do resto.
+            - "${BACK_PORT:-8000}:${BACK_CONTAINER_PORT:-8000}"
+        volumes:
+            - .:/var/www
+        env_file:
+            - .env
+        networks:
+            - app-network
 
-jobs:
-    build-and-deploy:
-        runs-on: [ self-hosted, prod-back ]
+    # --- Camada de Persistência (MySQL Isolado) ---
+    db:
+        image: mysql:8.0
+        container_name: mysql-container
+        restart: always
+        # ATENÇÃO: Removemos o bloco "ports" aqui. O banco está trancado para o mundo externo!
+        environment:
+            - MYSQL_DATABASE=${DB_DATABASE}
+            - MYSQL_USER=${DB_USERNAME}
+            - MYSQL_PASSWORD=${DB_PASSWORD}
+            - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
+        volumes:
+            - mysql_data:/var/lib/mysql
+        networks:
+            - app-network
 
-        steps:
-            - name: Checkout do código
-              uses: actions/checkout@v4
+    # --- Camada de Proxy HTTP (Nginx de Produção) ---
+    nginx:
+        image: nginx:alpine
+        container_name: nginx-backend
+        restart: always
+        profiles:
+            - production # Só inicia no Ubuntu Server quando chamado pela pipeline
+        ports:
+            # No servidor físico, expõe na porta 8000 externa para não conflitar com a porta 80 do Front!
+            - "${NGINX_BACK_PORT:-8000}:${NGINX_CONTAINER_PORT:-80}"
+        volumes:
+            - ./nginx.conf:/etc/nginx/conf.d/default.conf
+        depends_on:
+            - backend
+        networks:
+            - app-network
 
-            - name: Criar arquivo .env e Executar Build Local
-              run: |
-                  # Configura as variáveis para o Dockerfile saber que deve rodar o build de produção
-                  export DOCKER_TARGET_BACK=prod
-                  export BACK_PORT=8000
-                  export NGINX_BACK_PORT=8000
+volumes:
+    mysql_data:
 
-                  # Escreve o arquivo .env de produção que o Laravel e o MySQL vão ler
-                  echo "APP_ENV=production" > .env
-                  echo "APP_DEBUG=false" >> .env
-                  echo "DB_CONNECTION=mysql" >> .env
-                  echo "DB_HOST=db" >> .env
-                  echo "DB_DATABASE=laravel_prod" >> .env
-                  echo "DB_USERNAME=laravel_user" >> .env
-                  echo "DB_PASSWORD=senha_segura_producao" >> .env
-                  echo "DB_ROOT_PASSWORD=senha_root_ultra_segura" >> .env
-
-                  # Reconstrói a imagem do back-end localmente no servidor sem puxar de registro externo
-                  docker compose --profile production build --no-cache backend
-
-                  # Inicia todo o ambiente de produção
-                  docker compose --profile production up -d --force-recreate backend db nginx
-
-                  # Executa as migrations do Laravel
-                  sleep 10
-                  docker exec backend-container php artisan migrate --force
+networks:
+    app-network:
+        driver: bridge
