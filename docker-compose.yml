@@ -1,5 +1,6 @@
+version: '3.8'
+
 services:
-    # --- Camada de Aplicação (Laravel) ---
     backend:
         build:
             context: .
@@ -8,22 +9,19 @@ services:
         container_name: backend-container
         restart: always
         ports:
-            # Localmente roda na 8000 (artisan serve). Em prod, o PHP-FPM roda interno na 9000 e o Nginx cuida do resto.
             - "${BACK_PORT:-8000}:${BACK_CONTAINER_PORT:-8000}"
         volumes:
-            - ${LOCAL_BACK_PATH:-.}:${LOCAL_BACK_CONTAINER:-/var/www}
+            - ${VOLUME_HOST:-.}:/var/www
         env_file:
             - .env
         command: ${BACK_COMMAND:-sh -c "sleep 10 && php artisan migrate --force && php artisan serve --host=0.0.0.0 --port=8000"}
         networks:
             - app-network
 
-    # --- Camada de Persistência (MySQL Isolado) ---
     db:
         image: mysql:8.0
         container_name: mysql-container
         restart: always
-        # ATENÇÃO: Removemos o bloco "ports" aqui. O banco está trancado para o mundo externo!
         environment:
             - MYSQL_DATABASE=${DB_DATABASE}
             - MYSQL_USER=${DB_USERNAME:-usuario_placeholder}
@@ -34,15 +32,13 @@ services:
         networks:
             - app-network
 
-    # --- Camada de Proxy HTTP (Nginx de Produção) ---
     nginx:
         image: nginx:alpine
         container_name: nginx-backend
         restart: always
         profiles:
-            - production # Só inicia no Ubuntu Server quando chamado pela pipeline
+            - production
         ports:
-            # No servidor físico, expõe na porta 8000 externa para não conflitar com a porta 80 do Front!
             - "${NGINX_BACK_PORT:-8000}:${NGINX_CONTAINER_PORT:-80}"
         volumes:
             - ./nginx.conf:/etc/nginx/conf.d/default.conf
