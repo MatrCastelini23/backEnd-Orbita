@@ -20,7 +20,7 @@ jobs:
         NGINX_BACK_PORT: 8000
         NGINX_CONTAINER_PORT: 80
         BACK_COMMAND: "php-fpm"
-        VOLUME_HOST: "./production_code"
+        VOLUME_HOST: "backend_prod_volume"
       run: |
         echo "APP_ENV=production" > .env
         echo "APP_DEBUG=false" >> .env
