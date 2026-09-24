@@ -13,15 +13,17 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Criar arquivo .env e Executar Build Local
-      run: |
-        # Configura as portas para PRODUÇÃO no Ubuntu Server
-        export DOCKER_TARGET_BACK=prod
-        export BACK_PORT=9000
-        export BACK_CONTAINER_PORT=9000
-        export NGINX_BACK_PORT=8000        # <--- Porta de acesso externa da API
-        export NGINX_CONTAINER_PORT=80     # <--- Porta interna do Nginx do Back
+      env:
+        DOCKER_TARGET_BACK=prod
+        BACK_PORT=9000
+        BACK_CONTAINER_PORT=9000
+        NGINX_BACK_PORT=8000
+        NGINX_CONTAINER_PORT=80
         BACK_COMMAND: "php-fpm"
+        LOCAL_BACK_PATH: /var/www
+        LOCAL_BACK_CONTAINER: /var/www
 
+      run: |
         # Escreve o arquivo .env de produção que o container do Laravel lerá internamente
         echo "APP_ENV=production" > .env
         echo "APP_DEBUG=false" >> .env
