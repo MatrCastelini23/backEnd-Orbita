@@ -20,30 +20,24 @@ jobs:
         NGINX_BACK_PORT: 8000
         NGINX_CONTAINER_PORT: 80
         BACK_COMMAND: "php-fpm"
-        LOCAL_BACK_PATH: "/var/www"
-        LOCAL_BACK_CONTAINER: "/var/www"
-
+        VOLUME_HOST: "backend_prod_volume"
       run: |
-        # Escreve o arquivo .env de produção que o container do Laravel lerá internamente
         echo "APP_ENV=production" > .env
         echo "APP_DEBUG=false" >> .env
         echo "DB_CONNECTION=mysql" >> .env
-        echo "DB_HOST=db" >> .env             # <--- Aponta para o nome do serviço no compose
+        echo "DB_HOST=db" >> .env
         echo "DB_DATABASE=laravel_prod" >> .env
         echo "DB_USERNAME=laravel_user" >> .env
         echo "DB_PASSWORD=senha_segura_producao" >> .env
         echo "DB_ROOT_PASSWORD=senha_root_ultra_segura" >> .env
 
-        # Derruba execuções anteriores limpando conflitos
+        # Executa usando o arquivo único tradicional padrão do repositório
         docker compose --profile production down || true
         docker rm -f backend-container mysql-container nginx-backend || true
 
-        # Reconstrói a imagem do Laravel localmente no servidor
         docker compose --profile production build --no-cache backend
-
-        # Inicia o ecossistema com o perfil de produção ativo (inclui o Nginx do back na porta 8000)
         docker compose --profile production up -d backend db nginx
 
-        # Aguarda o MySQL inicializar as tabelas antes de aplicar as migrations
-        sleep 12
+        # O Artisan estará lá dentro pronto para ser executado
+        sleep 15
         docker exec backend-container php artisan migrate --force
