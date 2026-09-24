@@ -14,11 +14,11 @@ jobs:
 
     - name: Criar arquivo .env e Executar Build Local
       env:
-        DOCKER_TARGET_BACK=prod
-        BACK_PORT=9000
-        BACK_CONTAINER_PORT=9000
-        NGINX_BACK_PORT=8000
-        NGINX_CONTAINER_PORT=80
+        DOCKER_TARGET_BACK: prod
+        BACK_PORT: 9000
+        BACK_CONTAINER_PORT: 9000
+        NGINX_BACK_PORT: 8000
+        NGINX_CONTAINER_PORT: 80
         BACK_COMMAND: "php-fpm"
         LOCAL_BACK_PATH: /var/www
         LOCAL_BACK_CONTAINER: /var/www
