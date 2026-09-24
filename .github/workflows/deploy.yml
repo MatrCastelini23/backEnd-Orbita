@@ -20,6 +20,7 @@ jobs:
         export BACK_CONTAINER_PORT=9000
         export NGINX_BACK_PORT=8000        # <--- Porta de acesso externa da API
         export NGINX_CONTAINER_PORT=80     # <--- Porta interna do Nginx do Back
+        BACK_COMMAND: "php-fpm"
 
         # Escreve o arquivo .env de produção que o container do Laravel lerá internamente
         echo "APP_ENV=production" > .env
