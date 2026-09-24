@@ -26,7 +26,9 @@ CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
 
 # --- Alvo de Produção ---
 FROM base AS prod
-COPY . .
+WORKDIR /var/www
+
+COPY . /var/www/
 # Otimiza o Composer para produção (sem dependências de teste)
 RUN composer install --no-dev --optimize-autoloader
 
