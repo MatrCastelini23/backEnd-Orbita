@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
     # --- Camada de Aplicação (Laravel) ---
     backend:
@@ -13,9 +11,10 @@ services:
             # Localmente roda na 8000 (artisan serve). Em prod, o PHP-FPM roda interno na 9000 e o Nginx cuida do resto.
             - "${BACK_PORT:-8000}:${BACK_CONTAINER_PORT:-8000}"
         volumes:
-            - .:/var/www
+            - ${LOCAL_BACK_PATH:-./}:${LOCAL_BACK_CONTAINER:-/var/www}
         env_file:
             - .env
+        command: ${BACK_COMMAND:-sh -c "sleep 10 && php artisan migrate --force && php artisan serve --host=0.0.0.0 --port=8000"}
         networks:
             - app-network
 
@@ -27,7 +26,7 @@ services:
         # ATENÇÃO: Removemos o bloco "ports" aqui. O banco está trancado para o mundo externo!
         environment:
             - MYSQL_DATABASE=${DB_DATABASE}
-            - MYSQL_USER=${DB_USERNAME}
+            - MYSQL_USER=${DB_USERNAME:-usuario_placeholder}
             - MYSQL_PASSWORD=${DB_PASSWORD}
             - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
         volumes:
